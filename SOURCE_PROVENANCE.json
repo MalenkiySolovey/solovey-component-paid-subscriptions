@@ -1,0 +1,9 @@
+{
+  "schema": "solovey.component.source-provenance/v1",
+  "component": "paid-subscriptions",
+  "originalRepository": "https://github.com/MalenkiySolovey/solovey-ui",
+  "originalCommit": "b4ad1694ed54ba25ae6723991bb8e6ba38d3e26f",
+  "sourcePaths": ["components/paid-subscriptions/internal/paid", "components/paid-subscriptions/frontend", "components/paid-subscriptions/component.json"],
+  "historyPolicy": "The original Product history is retained. The module owns commercial persistence and provider behavior, and its Panel contribution uses public Frontend entrypoints.",
+  "originalLicense": "GPL-3.0-only"
+}

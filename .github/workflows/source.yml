@@ -52,3 +52,32 @@ jobs:
       - run: go test -race -count=1 ./...
       - run: go vet ./...
       - run: git diff --exit-code
+
+  ui:
+    name: paid-ui
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Read accepted Frontend SDK commit
+        id: sdk
+        run: node -e "const fs=require('node:fs'),p=require('./HOST_UI_PIN.json');if(p.repository!=='MalenkiySolovey/solovey-frontend'||!/^[0-9a-f]{40}$/.test(p.sourceCommit))throw Error('invalid Frontend SDK pin');fs.appendFileSync(process.env.GITHUB_OUTPUT,'commit='+p.sourceCommit+'\n')"
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          repository: MalenkiySolovey/solovey-frontend
+          ref: ${{ steps.sdk.outputs.commit }}
+          path: .host-ui
+          persist-credentials: false
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
+        with:
+          node-version-file: .host-ui/.node-version
+          cache: npm
+          cache-dependency-path: .host-ui/package-lock.json
+      - name: Check the Billing UI contribution against the pinned SDK
+        working-directory: .host-ui
+        run: |
+          npm ci --no-audit --no-fund
+          node scripts/check-component-ui.mjs ..

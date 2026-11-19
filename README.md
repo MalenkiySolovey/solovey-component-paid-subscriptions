@@ -17,6 +17,10 @@ owner on the same transaction as the Paid order and cancellation updates.
 Runtime refresh and notification run after commit. This package does not
 start a scheduler, read Panel settings or deliver notifications.
 
+`frontend/` owns the existing Classic and Nexus contribution and locales.
+The source job checks it against the Frontend SDK recorded in
+`HOST_UI_PIN.json`. It does not open a second session or HTTP client.
+
 Adapted from `MalenkiySolovey/solovey-ui` at
 `b7bdf123c1033700532f47e2f8488a03d6415bcf`,
 `components/paid-subscriptions/internal/paid`, under GPL-3.0.
