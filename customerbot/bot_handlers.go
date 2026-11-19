@@ -24,7 +24,7 @@ func (b *Handler) cmdStart(ctx context.Context, chatID int64, from *User, l Lang
 			_ = b.Send.Message(ctx, chatID, Text(l, "error"), nil)
 			return
 		}
-		if b.TryAutoRegister(ctx, chatID, from, l) {
+		if b.tryAutoRegister(ctx, chatID, from, l) {
 			return
 		}
 		_ = b.Send.Message(ctx, chatID, Text(l, "not_linked"), nil)

@@ -35,14 +35,14 @@ type Handler struct {
 	DB   *gorm.DB
 	Send Sender
 
-	Allow           func(telegramID int64) bool
-	ClientID        func(telegramID int64) (uint, error)
-	TryAutoRegister func(context.Context, int64, *User, Language) bool
-	Subscription    func(telegramID int64) (url string, links []string, err error)
-	ReadUsage       func(telegramID int64) (Usage, error)
-	RenderQR        func(string) ([]byte, error)
-	Greeting        func() (string, error)
-	RefundRevokes   func() (bool, error)
+	Allow         func(telegramID int64) bool
+	ClientID      func(telegramID int64) (uint, error)
+	Trial         *TrialRegistration
+	Subscription  func(telegramID int64) (url string, links []string, err error)
+	ReadUsage     func(telegramID int64) (Usage, error)
+	RenderQR      func(string) ([]byte, error)
+	Greeting      func() (string, error)
+	RefundRevokes func() (bool, error)
 
 	Provider     func(provider.ProviderKind) provider.PaymentProvider
 	Purchase     func(context.Context, uint, uint, provider.ProviderKind, int64) (*paid.PaymentOrder, *provider.Invoice, error)
