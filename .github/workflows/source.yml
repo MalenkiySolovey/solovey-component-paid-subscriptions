@@ -12,6 +12,7 @@ permissions:
 env:
   GOWORK: 'off'
   GOFLAGS: -mod=readonly
+  CGO_ENABLED: '1'
 
 jobs:
   source:
@@ -31,15 +32,21 @@ jobs:
         with:
           go-version-file: go.mod
           cache: false
-      - name: Independent provider dependency closure
+      - name: Independent Paid dependency closure
         shell: bash
         run: |
           set -euo pipefail
           test -z "$(gofmt -l $(git ls-files '*.go'))"
           go mod tidy -diff
-          go list -deps -test -f '{{with .Module}}{{if not .Main}}{{.Path}}{{end}}{{end}}' ./... > "$RUNNER_TEMP/paid-deps.txt"
-          if grep -q '[^[:space:]]' "$RUNNER_TEMP/paid-deps.txt"; then
+          format='{{with .Module}}{{if not .Main}}{{.Path}}{{end}}{{end}}'
+          go list -deps -test -f "$format" ./provider > "$RUNNER_TEMP/provider-deps.txt"
+          if grep -q '[^[:space:]]' "$RUNNER_TEMP/provider-deps.txt"; then
             echo 'Provider adapters must not link runtime or database modules.'
+            exit 1
+          fi
+          go list -deps -test -f "$format" ./... > "$RUNNER_TEMP/paid-deps.txt"
+          if grep -Eiq '^github\.com/MalenkiySolovey/' "$RUNNER_TEMP/paid-deps.txt"; then
+            echo 'Paid storage must not depend on another Solovey runtime or owner.'
             exit 1
           fi
       - run: go test -race -count=1 ./...
