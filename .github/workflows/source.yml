@@ -1,0 +1,47 @@
+name: Paid source
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+env:
+  GOWORK: 'off'
+  GOFLAGS: -mod=readonly
+
+jobs:
+  source:
+    name: paid-source (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-2025]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c
+        with:
+          go-version-file: go.mod
+          cache: false
+      - name: Independent provider dependency closure
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -z "$(gofmt -l $(git ls-files '*.go'))"
+          go mod tidy -diff
+          go list -deps -test -f '{{with .Module}}{{if not .Main}}{{.Path}}{{end}}{{end}}' ./... > "$RUNNER_TEMP/paid-deps.txt"
+          if grep -q '[^[:space:]]' "$RUNNER_TEMP/paid-deps.txt"; then
+            echo 'Provider adapters must not link runtime or database modules.'
+            exit 1
+          fi
+      - run: go test -race -count=1 ./...
+      - run: go vet ./...
+      - run: git diff --exit-code
