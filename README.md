@@ -12,8 +12,12 @@ claims. It accepts the Panel's connection and does not open a database.
 
 The Panel coordinates Client quota, expiry, accounting and audit with
 Backend. A recovered charge invokes that owner on the same transaction as
-the Paid order and cancellation updates. Bot orchestration and UI remain
-outside this storage slice.
+the Paid order and cancellation updates. The Panel still controls the bot
+lifecycle and applies Client entitlements.
+
+`frontend/` owns the existing Classic and Nexus contribution and locales.
+The source job checks it against the Frontend SDK recorded in
+`HOST_UI_PIN.json`. It does not open a second session or HTTP client.
 
 Adapted from `MalenkiySolovey/solovey-ui` at
 `b7bdf123c1033700532f47e2f8488a03d6415bcf`,

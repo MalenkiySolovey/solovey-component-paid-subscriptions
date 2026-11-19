@@ -1,0 +1,11 @@
+{
+  "repository": "MalenkiySolovey/solovey-frontend",
+  "sourceCommit": "2958828a473764e82311cddb31606fc76c3ad0ef",
+  "apiVersion": "1.0",
+  "files": {
+    ".node-version": "f399c8bddb720028cf5d92150a8472ee9b47ba620915755b141a6d737ef55f6a",
+    "package-lock.json": "ce5862abc08b48a100f25be49c345ac1a973d9f96b11a52af077195d3e64ffb0",
+    "src/componentSystem/sdk.ts": "942a17c0ccbcd2f7073e13eefcf8053ccccb36487a96113bf1faa04d8989728b",
+    "src/componentSystem/panelBilling.ts": "fe83185dd8743436d6f2213c25c27e17cb8df61de56b7f4cf092e9868db59145"
+  }
+}
