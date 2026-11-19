@@ -7,12 +7,13 @@ Client access, publish subscriptions, or run an independent bot service.
 `provider` implements invoice delivery, provider authenticity and
 reconciliation using typed purchase snapshots. The root package owns the
 existing five-table schema v4 and commercial models. `store` contains commerce
-queries for tariffs, orders and customer bindings. It accepts the Panel's
-connection or transaction and does not open a database.
+queries for tariffs, orders, customer bindings, invoice recovery and refund
+claims. It accepts the Panel's connection and does not open a database.
 
-The Panel coordinates transactions that include Client quota, expiry,
-accounting or audit changes with Backend. Bot orchestration and UI are not
-part of this storage slice.
+The Panel coordinates Client quota, expiry, accounting and audit with
+Backend. A recovered charge invokes that owner on the same transaction as
+the Paid order and cancellation updates. Bot orchestration and UI remain
+outside this storage slice.
 
 Adapted from `MalenkiySolovey/solovey-ui` at
 `b7bdf123c1033700532f47e2f8488a03d6415bcf`,
