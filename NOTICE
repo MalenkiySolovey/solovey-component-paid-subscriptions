@@ -1,0 +1,6 @@
+Solovey Paid Subscriptions
+
+Derived from MalenkiySolovey/solovey-ui under GPL-3.0-only.
+The original source history is retained in solovey-ui.
+The maintenance and customer workflows originally developed in Product retain
+the same ComponentID, settings, and transaction semantics in this module.
