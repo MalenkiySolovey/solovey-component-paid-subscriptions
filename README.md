@@ -11,9 +11,11 @@ queries for tariffs, orders, customer bindings, invoice recovery and refund
 claims. It accepts the Panel's connection and does not open a database.
 
 The Panel coordinates Client quota, expiry, accounting and audit with
-Backend. A recovered charge invokes that owner on the same transaction as
-the Paid order and cancellation updates. Bot orchestration and UI remain
-outside this storage slice.
+Backend. `workflow` owns a bounded poll/reconcile/cancel pass, invoked only by
+the Panel's existing scheduler. A recovered charge invokes the entitlement
+owner on the same transaction as the Paid order and cancellation updates.
+Runtime refresh and notification run after commit. This package does not
+start a scheduler, read Panel settings or deliver notifications.
 
 Adapted from `MalenkiySolovey/solovey-ui` at
 `b7bdf123c1033700532f47e2f8488a03d6415bcf`,
