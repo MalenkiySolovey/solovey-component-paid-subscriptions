@@ -7,6 +7,12 @@ import (
 	"gorm.io/gorm"
 )
 
+// TransactionRunner is supplied by the Panel database owner for writes that
+// also affect Client entitlements. It must honor a caller's existing transaction.
+type TransactionRunner func(db *gorm.DB, work func(tx *gorm.DB) error) error
+
+var errTransactionOwnerRequired = errors.New("Panel transaction runner is required")
+
 // GrantedUsage stores the Panel's usage snapshot for a later refund.
 type GrantedUsage struct {
 	Up, Down int64
@@ -14,11 +20,14 @@ type GrantedUsage struct {
 
 // SettlePayment records one authenticated charge. The entitlement callback
 // must use tx; live effects belong after the caller's outermost commit.
-func SettlePayment(db *gorm.DB, orderID uint, chargeID string, now int64, renew func(tx *gorm.DB, order paid.PaymentOrder) (GrantedUsage, error)) error {
+func SettlePayment(db *gorm.DB, transact TransactionRunner, orderID uint, chargeID string, now int64, renew func(tx *gorm.DB, order paid.PaymentOrder) (GrantedUsage, error)) error {
+	if transact == nil {
+		return errTransactionOwnerRequired
+	}
 	if chargeID == "" || renew == nil {
 		return errors.New("charge identity and entitlement callback are required")
 	}
-	return db.Transaction(func(tx *gorm.DB) error {
+	return transact(db, func(tx *gorm.DB) error {
 		changed := tx.Model(&paid.PaymentOrder{}).Where("id = ? AND status = ?", orderID, paid.StatusPending).
 			Updates(map[string]any{"status": paid.StatusPaid, "paid_at": now, "provider_charge_id": chargeID})
 		if changed.Error != nil {
@@ -44,8 +53,11 @@ func SettlePayment(db *gorm.DB, orderID uint, chargeID string, now int64, renew 
 
 // SettleRefund records a manual refund or an already-confirmed Stars refund.
 // A claimed refund uses only the policy saved with the original claim.
-func SettleRefund(db *gorm.DB, orderID uint, claim string, revoke bool, revokeGrant func(tx *gorm.DB, order paid.PaymentOrder, restoreLiveUsage bool) error) error {
-	return db.Transaction(func(tx *gorm.DB) error {
+func SettleRefund(db *gorm.DB, transact TransactionRunner, orderID uint, claim string, revoke bool, revokeGrant func(tx *gorm.DB, order paid.PaymentOrder, restoreLiveUsage bool) error) error {
+	if transact == nil {
+		return errTransactionOwnerRequired
+	}
+	return transact(db, func(tx *gorm.DB) error {
 		query := tx.Model(&paid.PaymentOrder{}).Where("id = ?", orderID)
 		if claim == "" {
 			query = query.Where("status = ?", paid.StatusPaid)

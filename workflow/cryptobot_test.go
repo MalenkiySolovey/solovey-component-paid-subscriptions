@@ -64,6 +64,10 @@ func noCharge(t *testing.T) ApplyCharge {
 	}
 }
 
+func fixtureTransaction(db *gorm.DB, work func(*gorm.DB) error) error {
+	return db.Transaction(work)
+}
+
 func TestPollWorkIsBoundedAndRotatesWithoutExpiringUnknownInvoices(t *testing.T) {
 	db := workDB(t)
 	var orders []paid.PaymentOrder
@@ -91,12 +95,12 @@ func TestPollWorkIsBoundedAndRotatesWithoutExpiringUnknownInvoices(t *testing.T)
 			t.Fatalf("unexpected work error %s: %v", message, err)
 		}
 	}
-	RunCryptoBot(context.Background(), db, fake, nil, noCharge(t), warn)
+	RunCryptoBot(context.Background(), db, fake, nil, fixtureTransaction, noCharge(t), warn)
 	if calls != 10 || len(seen) != 1000 {
 		t.Fatalf("first pass: %d calls, %d distinct orders", calls, len(seen))
 	}
 	calls = 0
-	RunCryptoBot(context.Background(), db, fake, nil, noCharge(t), warn)
+	RunCryptoBot(context.Background(), db, fake, nil, fixtureTransaction, noCharge(t), warn)
 	if calls > 10 || len(seen) != len(orders) {
 		t.Fatalf("second pass: %d calls, %d distinct orders overall", calls, len(seen))
 	}
@@ -118,7 +122,7 @@ func TestCanceledPollDoesNotApplyChargeOrAdvanceCursor(t *testing.T) {
 		cancel()
 		return provider.PollOutcome{Paid: []provider.PollResult{{OrderID: order.Id, ProviderChargeID: "cryptobot:41"}}}, nil
 	}}
-	RunCryptoBot(ctx, db, fake, nil, noCharge(t), func(message string, err error) { t.Fatalf("%s: %v", message, err) })
+	RunCryptoBot(ctx, db, fake, nil, fixtureTransaction, noCharge(t), func(message string, err error) { t.Fatalf("%s: %v", message, err) })
 	var cursors int64
 	if err := db.Model(&paid.ProviderCursor{}).Count(&cursors).Error; err != nil || cursors != 0 {
 		t.Fatalf("cancel advanced durable cursor: %d, %v", cursors, err)
@@ -145,7 +149,7 @@ func TestCancellationFailureRotatesWithoutCompletingWork(t *testing.T) {
 			t.Fatalf("unexpected work error %s: %v", message, err)
 		}
 	}
-	run := func() { RunCryptoBot(context.Background(), db, fake, fake, noCharge(t), warn) }
+	run := func() { RunCryptoBot(context.Background(), db, fake, fake, fixtureTransaction, noCharge(t), warn) }
 	done := func(want int64) {
 		t.Helper()
 		var completed int64
@@ -181,7 +185,7 @@ func TestRecoveryEffectsRunOnlyAfterCommit(t *testing.T) {
 		},
 		cancel: func(context.Context, string) (bool, error) { return true, nil },
 	}
-	fixtureErr := errors.New("entitlement failed")
+	fixtureErr := errors.New("Panel rejected commit")
 	attempts, delivered := 0, 0
 	apply := func(tx *gorm.DB, id uint, chargeID string) (func(context.Context), error) {
 		attempts++
@@ -195,23 +199,31 @@ func TestRecoveryEffectsRunOnlyAfterCommit(t *testing.T) {
 				t.Fatalf("effect ran before recovery committed: %+v, %v", saved, err)
 			}
 		}
-		if attempts == 1 {
-			return after, fixtureErr
-		}
 		return after, nil
+	}
+	transact := func(db *gorm.DB, work func(*gorm.DB) error) error {
+		return fixtureTransaction(db, func(tx *gorm.DB) error {
+			if err := work(tx); err != nil {
+				return err
+			}
+			if attempts == 1 {
+				return fixtureErr
+			}
+			return nil
+		})
 	}
 	warn := func(message string, err error) {
 		if !errors.Is(err, fixtureErr) {
 			t.Fatalf("unexpected work error %s: %v", message, err)
 		}
 	}
-	RunCryptoBot(context.Background(), db, fake, fake, apply, warn)
+	RunCryptoBot(context.Background(), db, fake, fake, transact, apply, warn)
 	saved, err := store.GetOrder(db, order.Id)
 	if err != nil || saved.Status != paid.StatusRecoverable || delivered != 0 {
 		t.Fatalf("rollback escaped: order=%+v effects=%d err=%v", saved, delivered, err)
 	}
 	for range 2 {
-		RunCryptoBot(context.Background(), db, fake, fake, apply, warn)
+		RunCryptoBot(context.Background(), db, fake, fake, transact, apply, warn)
 	}
 	if attempts != 2 || delivered != 1 {
 		t.Fatalf("expected one committed effect: %d attempts, %d effects", attempts, delivered)

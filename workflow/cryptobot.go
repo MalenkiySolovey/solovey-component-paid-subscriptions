@@ -16,7 +16,7 @@ import (
 const cryptoBotGraceSeconds int64 = 24 * 60 * 60
 
 // ApplyCharge must use the supplied connection. During invoice recovery it is
-// already inside the Paid transaction. Return only effects that must run after
+// already inside the Panel transaction. Return only effects that must run after
 // the transaction commits, such as live runtime refresh or notification.
 type ApplyCharge func(db *gorm.DB, orderID uint, chargeID string) (afterCommit func(context.Context), err error)
 
@@ -24,8 +24,8 @@ type Warn func(message string, err error)
 
 // RunCryptoBot processes one bounded pass. It never starts a scheduler or
 // reads Panel settings. Callers own cancellation and admission of this pass.
-func RunCryptoBot(ctx context.Context, db *gorm.DB, poller provider.PollingProvider, reconciler provider.ReconciliationProvider, apply ApplyCharge, warn Warn) {
-	if db == nil || poller == nil || apply == nil || warn == nil || ctx.Err() != nil {
+func RunCryptoBot(ctx context.Context, db *gorm.DB, poller provider.PollingProvider, reconciler provider.ReconciliationProvider, transact store.TransactionRunner, apply ApplyCharge, warn Warn) {
+	if db == nil || poller == nil || transact == nil || apply == nil || warn == nil || ctx.Err() != nil {
 		return
 	}
 	db = db.WithContext(ctx)
@@ -94,7 +94,7 @@ func RunCryptoBot(ctx context.Context, db *gorm.DB, poller provider.PollingProvi
 		} else {
 			for _, result := range recovered {
 				var after func(context.Context)
-				err := store.RecoverProviderOrder(db, result, time.Now().Unix(), cryptoBotGraceSeconds, func(tx *gorm.DB, orderID uint, chargeID string) error {
+				err := store.RecoverProviderOrder(db, transact, result, time.Now().Unix(), cryptoBotGraceSeconds, func(tx *gorm.DB, orderID uint, chargeID string) error {
 					var applyErr error
 					after, applyErr = apply(tx, orderID, chargeID)
 					if applyErr != nil {
