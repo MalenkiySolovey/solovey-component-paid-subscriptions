@@ -31,3 +31,7 @@ func newPaidDB(t *testing.T) *gorm.DB {
 	}
 	return db
 }
+
+func fixtureTransaction(db *gorm.DB, work func(*gorm.DB) error) error {
+	return db.Transaction(work)
+}

@@ -10,12 +10,13 @@ existing five-table schema v4 and commercial models. `store` contains commerce
 queries for tariffs, orders, customer bindings, invoice recovery and refund
 claims. It accepts the Panel's connection and does not open a database.
 
-The Panel coordinates Client quota, expiry, accounting and audit with
-Backend. `workflow` owns a bounded poll/reconcile/cancel pass, invoked only by
-the Panel's existing scheduler. A recovered charge invokes the entitlement
-owner on the same transaction as the Paid order and cancellation updates.
-Runtime refresh and notification run after commit. This package does not
-start a scheduler, read Panel settings or deliver notifications.
+Backend owns Client quota, expiry, accounting, audit and the transaction
+boundary for settlement, refund and recovery. `workflow` owns a bounded
+poll/reconcile/cancel pass, invoked only by the Panel's existing scheduler.
+Paid uses the supplied transaction runner so a recovered charge invokes the
+entitlement owner on the same transaction as the order and cancellation
+updates. Runtime refresh and notification run after commit. This package
+does not start a scheduler, read Panel settings or deliver notifications.
 
 `frontend/` owns the existing Classic and Nexus contribution and locales.
 The source job checks it against the Frontend SDK recorded in

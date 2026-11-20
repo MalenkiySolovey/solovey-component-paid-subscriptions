@@ -21,7 +21,7 @@ func TestRecoveryUsesOneTransactionForChargeAndCancellation(t *testing.T) {
 		{Ref: "41", State: provider.InvoicePaid, Verified: true},
 		{Ref: "42", State: provider.InvoiceActive, Verified: true},
 	}}
-	if err := RecoverProviderOrder(db, recovery, 1000, 86400, nil); err == nil {
+	if err := RecoverProviderOrder(db, fixtureTransaction, recovery, 1000, 86400, nil); err == nil {
 		t.Fatal("recovery accepted without the Panel grant owner")
 	}
 	fixtureErr := errors.New("fixture entitlement failure")
@@ -41,7 +41,10 @@ func TestRecoveryUsesOneTransactionForChargeAndCancellation(t *testing.T) {
 		}
 		return tx.Model(current).Updates(map[string]any{"status": paid.StatusPaid, "provider_charge_id": chargeID}).Error
 	}
-	if err := RecoverProviderOrder(db, recovery, 1000, 86400, apply); !errors.Is(err, fixtureErr) {
+	if err := RecoverProviderOrder(db, nil, recovery, 1000, 86400, apply); !errors.Is(err, errTransactionOwnerRequired) || attempts != 0 {
+		t.Fatalf("recovery accepted without a transaction owner: %v, attempts=%d", err, attempts)
+	}
+	if err := RecoverProviderOrder(db, fixtureTransaction, recovery, 1000, 86400, apply); !errors.Is(err, fixtureErr) {
 		t.Fatalf("failed entitlement was accepted: %v", err)
 	}
 	current, err := GetOrder(db, order.Id)
@@ -52,7 +55,7 @@ func TestRecoveryUsesOneTransactionForChargeAndCancellation(t *testing.T) {
 		t.Fatalf("sibling cancellation escaped rollback: %v, %v", queued, err)
 	}
 	for range 2 {
-		if err := RecoverProviderOrder(db, recovery, 1000, 86400, apply); err != nil {
+		if err := RecoverProviderOrder(db, fixtureTransaction, recovery, 1000, 86400, apply); err != nil {
 			t.Fatal(err)
 		}
 	}

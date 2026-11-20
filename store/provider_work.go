@@ -106,11 +106,14 @@ func queueCancellations(tx *gorm.DB, orderID uint, candidates []provider.Recover
 // transaction that records the recovered invoice and sibling cancellations.
 type ApplyRecoveredCharge func(tx *gorm.DB, orderID uint, chargeID string) error
 
-func RecoverProviderOrder(db *gorm.DB, recovered provider.Reconciliation, now, grace int64, apply ApplyRecoveredCharge) error {
+func RecoverProviderOrder(db *gorm.DB, transact TransactionRunner, recovered provider.Reconciliation, now, grace int64, apply ApplyRecoveredCharge) error {
+	if transact == nil {
+		return errTransactionOwnerRequired
+	}
 	if apply == nil {
 		return errors.New("recovered payment grant callback is required")
 	}
-	err := db.Transaction(func(tx *gorm.DB) error {
+	err := transact(db, func(tx *gorm.DB) error {
 		res := tx.Model(&paid.PaymentOrder{}).Where("id = ? AND provider = 'cryptobot' AND (status IN ? OR (status = ? AND provider_ref = ''))", recovered.OrderID, []string{paid.StatusInvoiceCreating, paid.StatusRecoverable}, paid.StatusPending).Update("status", paid.StatusRecoverable)
 		if res.Error != nil {
 			return res.Error
